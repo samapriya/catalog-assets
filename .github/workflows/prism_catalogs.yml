@@ -1,0 +1,39 @@
+name: Refresh PRISM Catalogs
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC every day
+  workflow_dispatch:        # allow manual trigger from the Actions tab
+
+jobs:
+  build-catalogs:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write       # needed to push the updated JSON files
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Build PRISM catalogs
+        run: python build_prism_catalogs.py --workers 16
+
+      - name: Commit and push updated catalogs
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/prism_catalog_monthly.json \
+                  assets/prism_catalog_daily.json
+          # Only commit if there are actual changes
+          git diff --cached --quiet || \
+            git commit -m "chore: refresh PRISM catalogs [$(date -u +%Y-%m-%d)]"
+          git push
